@@ -1,0 +1,86 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BetOption {
+  HOME_WIN
+  DRAW
+  AWAY_WIN
+}
+
+enum GameStatus {
+  SCHEDULED
+  CLOSED
+  FINISHED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+
+  bets      Bet[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Game {
+  id String @id @default(cuid())
+
+  homeTeam String
+  awayTeam String
+
+  gameDate DateTime
+  betCloseAt DateTime
+
+  status GameStatus @default(SCHEDULED)
+
+  homeScore Int?
+  awayScore Int?
+
+  bets Bet[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gameDate])
+  @@index([status])
+}
+
+model Bet {
+  id String @id @default(cuid())
+
+  userId String
+  gameId String
+
+  option BetOption
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  game Game @relation(fields: [gameId], references: [id])
+
+  @@unique([userId, gameId])
+  @@index([gameId])
+  @@index([userId])
+}
+
+model BlogPost {
+  id        String   @id @default(cuid())
+
+  title     String
+  slug      String   @unique
+  content   String   @db.Text
+
+  published Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
