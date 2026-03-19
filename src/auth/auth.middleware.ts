@@ -1,0 +1,38 @@
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
+import * as jwt from 'jsonwebtoken';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class AuthMiddleware implements NestMiddleware {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async use(req: Request, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+      const payload = jwt.verify(
+        token,
+        process.env.JWT_SECRET || 'default-secret',
+      ) as { userId: string };
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.userId },
+      });
+
+      if (user) {
+        req.user = user;
+      }
+    } catch {
+      // Token inválido, mas não lança erro aqui, apenas não seta user
+    }
+
+    next();
+  }
+}

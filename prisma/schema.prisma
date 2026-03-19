@@ -19,15 +19,29 @@ enum GameStatus {
   FINISHED
 }
 
+enum Role {
+  ADMIN
+  MODERATOR
+  PLAYER
+  PENDING
+}
+
 model User {
   id        String   @id @default(cuid())
-  name      String
+
+  name      String?
   email     String   @unique
+  image     String?
+
+  provider  String?  
+  providerId String?  
+
+  role      Role      @default(PENDING)
 
   bets      Bet[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Game {

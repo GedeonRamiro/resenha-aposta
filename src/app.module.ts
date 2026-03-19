@@ -7,6 +7,7 @@ import { GameModule } from './game/game.module';
 import { BetModule } from './bet/bet.module';
 import { BlogPostModule } from './blog-post/blog-post.module';
 import { UserScoreModule } from './user-score/user-score.module';
+import { AuthModule } from './auth/auth.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -17,6 +18,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     BetModule,
     BlogPostModule,
     UserScoreModule,
+    AuthModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

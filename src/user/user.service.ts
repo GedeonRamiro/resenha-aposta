@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   NotAcceptableException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -97,7 +98,7 @@ export class UserService {
     });
 
     if (user && user.id !== excludeId) {
-      throw new NotFoundException('Email já cadastrado!');
+      throw new ConflictException('Email já cadastrado!');
     }
 
     return true;
