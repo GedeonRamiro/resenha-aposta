@@ -5,22 +5,33 @@ description: Describe when these instructions should be loaded by the agent base
 
 # Technology Stack (derived from package.json)
 
-This project uses the following core technologies:
+Este projeto utiliza as seguintes tecnologias principais:
 
-- **NestJS** (v11) – a progressive Node.js framework for building server-side applications.
-- **TypeScript** – strong typing for JavaScript, used throughout the codebase.
-- **Prisma** (v7) – ORM for database access (PostgreSQL is implied by existing schema and conventions).
-- **Jest** – testing framework for unit and integration tests.
-- **ESLint + Prettier** – linting and formatting tooling.
+- **NestJS** (v11) – Framework Node.js para aplicações server-side.
+- **TypeScript** – Tipagem forte para JavaScript, em todo o projeto.
+- **Prisma** (v7) – ORM para acesso a banco de dados (PostgreSQL).
+- **Jest** – Testes unitários e integração.
+- **ESLint + Prettier** – Lint e formatação de código.
+- **Class Validator/Transformer** – Validação e transformação de DTOs.
+- **JWT** – Autenticação baseada em tokens.
+- **dotenv** – Gerenciamento de variáveis de ambiente.
+- **RxJS** – Programação reativa.
+- **Slugify** – Geração de slugs para URLs.
 
-## Key package.json entries
+## Principais dependências do package.json
 
-- `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express`
-- `@prisma/client`, `prisma`
-- `typescript`, `ts-node`, `ts-jest`, `tsconfig-paths`
-- `jest`, `supertest` (for E2E tests)
-- `eslint`, `@eslint/eslintrc`, `eslint-config-prettier`, `eslint-plugin-prettier`
+- `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/schedule`, `@nestjs/mapped-types`
+- `@prisma/client`, `prisma`, `@prisma/adapter-pg`, `pg`
+- `class-transformer`, `class-validator`
+- `dotenv`, `jsonwebtoken`, `@types/jsonwebtoken`
+- `reflect-metadata`, `rxjs`, `slugify`
+- `typescript`, `ts-node`, `ts-jest`, `tsconfig-paths`, `ts-loader`, `typescript-eslint`
+- `jest`, `supertest`, `@types/jest`, `@types/supertest`
+- `eslint`, `@eslint/eslintrc`, `eslint-config-prettier`, `eslint-plugin-prettier`, `prettier`, `globals`
 
----
+## Outras ferramentas
 
-> This file is auto-generated based on `package.json` and is intended to help AI agents understand the project's primary technologies.
+- **Nest CLI** – Scripts de build, start e geração de código.
+- **Supertest** – Testes E2E.
+
+> Este arquivo é baseado no `package.json` e serve para documentar as principais tecnologias do projeto.
