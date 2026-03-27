@@ -1,9 +1,10 @@
-import { IsEmail, MinLength } from 'class-validator';
+import { Role } from '@prisma/client';
+import { IsEnum, IsOptional } from 'class-validator';
 
 export class UpdateUserDto {
-  @MinLength(3, { message: 'Nome muito curto!' })
-  name: string;
-
-  @IsEmail(undefined, { message: 'Formato de e-mail digitado não é valido!' })
-  email: string;
+  @IsOptional()
+  @IsEnum(Role, {
+    message: 'Perfil deve ser ADMIN, MODERATOR, PLAYER ou PENDING!',
+  })
+  role?: Role;
 }

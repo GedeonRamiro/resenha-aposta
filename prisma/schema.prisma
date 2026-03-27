@@ -49,9 +49,12 @@ model Game {
 
   homeTeam String
   awayTeam String
+  competition String?
 
   gameDate DateTime
   betCloseAt DateTime
+
+  moreInfo String? @db.Text
 
   status GameStatus @default(SCHEDULED)
 
@@ -65,6 +68,7 @@ model Game {
 
   @@index([gameDate])
   @@index([status])
+  @@index([competition])
 }
 
 model Bet {
@@ -75,15 +79,20 @@ model Bet {
 
   option BetOption
 
+  isCorrect Boolean?
+  pointsAwarded Int @default(0)
+  settledAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
-  game Game @relation(fields: [gameId], references: [id])
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@unique([userId, gameId])
   @@index([gameId])
   @@index([userId])
+  @@index([gameId, settledAt])
 }
 
 model BlogPost {

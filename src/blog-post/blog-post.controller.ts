@@ -7,17 +7,23 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { BlogPostService } from './blog-post.service';
 import { CreateBlogPostDto } from './dtos/create-blog-post.dto';
 import { UpdateBlogPostDto } from './dtos/update-blog-post.dto';
 import { Environment } from '../enums/role.Environment';
+import { AuthGuard } from '../guards/auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/decorators';
 
 @Controller('blog-posts')
 export class BlogPostController {
   constructor(private readonly blogPostService: BlogPostService) {}
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('ADMIN')
   create(@Body() dto: CreateBlogPostDto) {
     return this.blogPostService.create(dto);
   }
@@ -45,11 +51,15 @@ export class BlogPostController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('ADMIN')
   update(@Param('id') id: string, @Body() dto: UpdateBlogPostDto) {
     return this.blogPostService.update(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('ADMIN')
   remove(@Param('id') id: string) {
     return this.blogPostService.remove(id);
   }

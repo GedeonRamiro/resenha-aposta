@@ -30,6 +30,9 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Usuário não autenticado');
     }
 
+    // ADMIN has full access to all routes
+    if (user.role === 'ADMIN') return true;
+
     if (!requiredRoles.includes(user.role)) {
       throw new ForbiddenException('Sem permissão');
     }

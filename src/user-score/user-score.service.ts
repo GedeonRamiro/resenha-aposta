@@ -46,6 +46,12 @@ export class UserScoreService {
 
         ranking[bet.userId].bets += 1;
 
+        if (bet.settledAt) {
+          ranking[bet.userId].points += bet.pointsAwarded;
+          continue;
+        }
+
+        // Backward compatibility for games that were finished before settlement fields existed.
         if (bet.option === result) {
           ranking[bet.userId].points += 1;
         }

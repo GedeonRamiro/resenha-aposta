@@ -2,15 +2,44 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBetDto } from './dtos/create-bet.dto';
 import { UpdateBetDto } from './dtos/update-bet.dto';
 import { ReturnBetPagination } from './interface/return-bet-pagination';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class BetService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private parseDateTime(value: string, fieldName: string): Date {
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException(`${fieldName} inválida`);
+    }
+
+    return parsed;
+  }
+
+  private parseDateFilter(value: string, bound: 'start' | 'end'): Date {
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+    if (isDateOnly) {
+      const [year, month, day] = value.split('-').map(Number);
+      const utcDate = new Date(Date.UTC(year, month - 1, day));
+
+      if (bound === 'end') {
+        utcDate.setUTCDate(utcDate.getUTCDate() + 1);
+      }
+
+      return utcDate;
+    }
+
+    return this.parseDateTime(value, 'Data de filtro');
+  }
 
   async create(createBetDto: CreateBetDto) {
     const user = await this.prisma.user.findUnique({
@@ -56,8 +85,10 @@ export class BetService {
       where: {
         game: {
           gameDate: {
-            gte: startDate ? new Date(startDate) : undefined,
-            lte: endDate ? new Date(endDate) : undefined,
+            gte: startDate
+              ? this.parseDateFilter(startDate, 'start')
+              : undefined,
+            lt: endDate ? this.parseDateFilter(endDate, 'end') : undefined,
           },
         },
       },
@@ -76,19 +107,19 @@ export class BetService {
   ): Promise<ReturnBetPagination> {
     const skip = (page - 1) * limit;
 
-    const start = startDate ? new Date(startDate) : undefined;
-    const end = endDate ? new Date(endDate) : undefined;
-
-    if (end) {
-      end.setDate(end.getDate() + 1);
-    }
+    const start = startDate
+      ? this.parseDateFilter(startDate, 'start')
+      : undefined;
+    const end = endDate ? this.parseDateFilter(endDate, 'end') : undefined;
 
     const where =
       startDate || endDate
         ? {
-            createdAt: {
-              gte: start,
-              lt: end,
+            game: {
+              gameDate: {
+                gte: start,
+                lt: end,
+              },
             },
           }
         : {};
@@ -99,7 +130,7 @@ export class BetService {
       where,
       take: limit,
       skip,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { game: { gameDate: 'desc' } }],
       include: { game: true, user: true },
     });
 
@@ -159,16 +190,20 @@ export class BetService {
     });
   }
 
-  async update(id: string, updateBetDto: UpdateBetDto) {
-    const bet = await this.findOne(id);
+  async update(id: string, updateBetDto: UpdateBetDto, requester: User) {
+    const currentBet = await this.findOne(id);
 
-    if (bet.game.status !== 'SCHEDULED') {
-      throw new NotFoundException('Mercado fechado!');
+    if (currentBet.game.status !== 'SCHEDULED') {
+      throw new BadRequestException('Mercado fechado!');
     }
 
-    return await this.prisma.bet.update({
+    if (requester.role !== 'ADMIN' && currentBet.userId !== requester.id) {
+      throw new ForbiddenException('Você só pode editar sua própria aposta!');
+    }
+
+    return this.prisma.bet.update({
       where: { id },
-      data: updateBetDto,
+      data: { option: updateBetDto.option },
     });
   }
 

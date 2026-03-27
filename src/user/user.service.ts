@@ -3,6 +3,7 @@ import {
   NotFoundException,
   NotAcceptableException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -60,6 +61,9 @@ export class UserService {
       where: { id },
       include: {
         bets: {
+          orderBy: {
+            createdAt: 'desc',
+          },
           include: {
             game: true,
           },
@@ -76,19 +80,30 @@ export class UserService {
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     await this.findOne(id);
-    await this.existEmail(updateUserDto.email, id);
+
+    if (!updateUserDto.role) {
+      throw new BadRequestException('Informe o perfil para atualizar!');
+    }
 
     return await this.prisma.user.update({
       where: { id },
-      data: updateUserDto,
+      data: {
+        role: updateUserDto.role,
+      },
     });
   }
 
   async remove(id: string) {
     await this.findOne(id);
 
-    return await this.prisma.user.delete({
-      where: { id },
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.bet.deleteMany({
+        where: { userId: id },
+      });
+
+      return tx.user.delete({
+        where: { id },
+      });
     });
   }
 

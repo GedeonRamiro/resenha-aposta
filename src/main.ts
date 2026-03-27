@@ -6,6 +6,36 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = new Set([
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://raymundo-nonhabitable-kole.ngrok-free.dev',
+  ]);
+
+  const corsOriginsFromEnv = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  for (const origin of corsOriginsFromEnv) {
+    allowedOrigins.add(origin);
+  }
+
+  const isAllowedNgrokOrigin = (origin: string): boolean => {
+    try {
+      const { protocol, hostname } = new URL(origin);
+      const isHttp = protocol === 'http:' || protocol === 'https:';
+      const isNgrokHost =
+        hostname.endsWith('.ngrok-free.dev') ||
+        hostname.endsWith('.ngrok.io') ||
+        hostname.endsWith('.ngrok.app');
+
+      return isHttp && isNgrokHost;
+    } catch {
+      return false;
+    }
+  };
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -15,7 +45,20 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: (origin, callback) => {
+      const isStringOrigin = typeof origin === 'string';
+
+      if (
+        !origin ||
+        (isStringOrigin &&
+          (allowedOrigins.has(origin) || isAllowedNgrokOrigin(origin)))
+      ) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   });
 
