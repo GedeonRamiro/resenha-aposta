@@ -8,9 +8,13 @@ async function bootstrap() {
 
   const allowedOrigins = new Set([
     'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'https://raymundo-nonhabitable-kole.ngrok-free.dev',
+    'https://resenha-aposta-front-chi.vercel.app',
   ]);
+
+  const frontendUrl = (process.env.FRONTEND_URL ?? '').trim();
+  if (frontendUrl) {
+    allowedOrigins.add(frontendUrl);
+  }
 
   const corsOriginsFromEnv = (process.env.CORS_ORIGINS ?? '')
     .split(',')
