@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBetDto } from './dtos/create-bet.dto';
 import { UpdateBetDto } from './dtos/update-bet.dto';
 import { ReturnBetPagination } from './interface/return-bet-pagination';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class BetService {
@@ -112,26 +112,66 @@ export class BetService {
       : undefined;
     const end = endDate ? this.parseDateFilter(endDate, 'end') : undefined;
 
-    const where =
-      startDate || endDate
+    const gameWhere: Prisma.GameWhereInput = {
+      ...(startDate || endDate
         ? {
-            game: {
-              gameDate: {
-                gte: start,
-                lt: end,
-              },
+            gameDate: {
+              gte: start,
+              lt: end,
             },
           }
-        : {};
+        : {}),
+      bets: {
+        some: {},
+      },
+    };
 
-    const count = await this.prisma.bet.count({ where });
+    const count = await this.prisma.game.count({ where: gameWhere });
 
-    const bets = await this.prisma.bet.findMany({
-      where,
+    const games = await this.prisma.game.findMany({
+      where: gameWhere,
+      select: { id: true },
       take: limit,
       skip,
-      orderBy: [{ createdAt: 'desc' }, { game: { gameDate: 'desc' } }],
+      orderBy: [{ gameDate: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    const gameIds = games.map((game) => game.id);
+
+    if (gameIds.length === 0) {
+      const lastPage = Math.ceil(count / limit);
+
+      return {
+        data: [],
+        count,
+        currentPage: page,
+        nextPage: page < lastPage ? page + 1 : null,
+        prevPage: page > 1 ? page - 1 : null,
+        lastPage,
+      };
+    }
+
+    const bets = await this.prisma.bet.findMany({
+      where: {
+        gameId: {
+          in: gameIds,
+        },
+      },
       include: { game: true, user: true },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+
+    const gameOrder = new Map(gameIds.map((id, index) => [id, index]));
+
+    bets.sort((a, b) => {
+      const aGameOrder = gameOrder.get(a.gameId) ?? Number.MAX_SAFE_INTEGER;
+      const bGameOrder = gameOrder.get(b.gameId) ?? Number.MAX_SAFE_INTEGER;
+
+      if (aGameOrder !== bGameOrder) {
+        return aGameOrder - bGameOrder;
+      }
+
+      return b.createdAt.getTime() - a.createdAt.getTime();
     });
 
     const lastPage = Math.ceil(count / limit);
