@@ -85,6 +85,7 @@ model Bet {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  lastEditedAt DateTime?
 
   user User @relation(fields: [userId], references: [id])
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)

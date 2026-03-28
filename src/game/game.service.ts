@@ -29,28 +29,15 @@ export class GameService {
     const result = this.getResult(homeScore, awayScore);
     const now = new Date();
 
-    const bets = await tx.bet.findMany({
-      where: { gameId },
-      select: {
-        id: true,
-        option: true,
-      },
-    });
-
-    await Promise.all(
-      bets.map((bet) => {
-        const isCorrect = bet.option === result;
-
-        return tx.bet.update({
-          where: { id: bet.id },
-          data: {
-            isCorrect,
-            pointsAwarded: isCorrect ? 1 : 0,
-            settledAt: now,
-          },
-        });
-      }),
-    );
+    // Use raw SQL to update bets without triggering updatedAt auto-update
+    await tx.$executeRaw`
+      UPDATE "Bet"
+      SET
+        "isCorrect" = (CASE WHEN option = ${result}::"BetOption" THEN true ELSE false END),
+        "pointsAwarded" = (CASE WHEN option = ${result}::"BetOption" THEN 1 ELSE 0 END),
+        "settledAt" = ${now}
+      WHERE "gameId" = ${gameId}
+    `;
   }
 
   private parseDateTime(value: string, fieldName: string): Date {

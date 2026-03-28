@@ -243,7 +243,10 @@ export class BetService {
 
     return this.prisma.bet.update({
       where: { id },
-      data: { option: updateBetDto.option },
+      data: {
+        option: updateBetDto.option,
+        lastEditedAt: new Date(),
+      },
     });
   }
 
