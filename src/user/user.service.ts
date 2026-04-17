@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { ReturnUserPagination } from './interface/return-user-pagination';
+import { createPagination } from 'src/utils/pagination';
 
 @Injectable()
 export class UserService {
@@ -44,15 +45,11 @@ export class UserService {
       },
     });
 
-    const lastPage = Math.ceil(count / limit);
+    const pagination = createPagination(limit, page, count);
 
     return {
       data: users,
-      count,
-      currentPage: page,
-      nextPage: page < lastPage ? page + 1 : null,
-      prevPage: page > 1 ? page - 1 : null,
-      lastPage,
+      ...pagination,
     };
   }
 
@@ -96,14 +93,8 @@ export class UserService {
   async remove(id: string) {
     await this.findOne(id);
 
-    return await this.prisma.$transaction(async (tx) => {
-      await tx.bet.deleteMany({
-        where: { userId: id },
-      });
-
-      return tx.user.delete({
-        where: { id },
-      });
+    return await this.prisma.user.delete({
+      where: { id },
     });
   }
 

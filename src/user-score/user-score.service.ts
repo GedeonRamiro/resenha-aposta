@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RankingItem } from './interface/ranking-item.interface';
+import { parseDateFilter } from 'src/utils/dataTimeFilter';
 
 @Injectable()
 export class UserScoreService {
@@ -17,8 +18,8 @@ export class UserScoreService {
       where: {
         status: 'FINISHED',
         gameDate: {
-          gte: startDate ? new Date(startDate) : undefined,
-          lte: endDate ? new Date(endDate) : undefined,
+          gte: startDate ? parseDateFilter(startDate, 'start') : undefined,
+          lt: endDate ? parseDateFilter(endDate, 'end') : undefined,
         },
       },
       include: {

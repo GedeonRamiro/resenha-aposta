@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotAcceptableException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type BlogPost } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBlogPostDto } from './dtos/create-blog-post.dto';
 import { UpdateBlogPostDto } from './dtos/update-blog-post.dto';
 import { ReturnBlogPostPagination } from './interface/return-blog-post-pagination';
 import slugify from 'slugify';
+import { createPagination } from 'src/utils/pagination';
 
 @Injectable()
 export class BlogPostService {
@@ -30,6 +35,10 @@ export class BlogPostService {
     page: number,
     query?: string,
   ): Promise<ReturnBlogPostPagination> {
+    if (isNaN(limit) || isNaN(page)) {
+      throw new NotAcceptableException('Página ou limite formato inválido!');
+    }
+
     const skip = (page - 1) * limit;
 
     const where = query
@@ -62,15 +71,11 @@ export class BlogPostService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const lastPage = Math.ceil(count / limit);
+    const pagination = createPagination(limit, page, count);
 
     return {
       data: posts,
-      count,
-      currentPage: page,
-      nextPage: page < lastPage ? page + 1 : null,
-      prevPage: page > 1 ? page - 1 : null,
-      lastPage,
+      ...pagination,
     };
   }
 

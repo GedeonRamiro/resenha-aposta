@@ -3,43 +3,19 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  NotAcceptableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBetDto } from './dtos/create-bet.dto';
 import { UpdateBetDto } from './dtos/update-bet.dto';
 import { ReturnBetPagination } from './interface/return-bet-pagination';
 import { Prisma, User } from '@prisma/client';
+import { createPagination } from 'src/utils/pagination';
+import { parseDateFilter } from 'src/utils/dataTimeFilter';
 
 @Injectable()
 export class BetService {
   constructor(private readonly prisma: PrismaService) {}
-
-  private parseDateTime(value: string, fieldName: string): Date {
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException(`${fieldName} inválida`);
-    }
-
-    return parsed;
-  }
-
-  private parseDateFilter(value: string, bound: 'start' | 'end'): Date {
-    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-    if (isDateOnly) {
-      const [year, month, day] = value.split('-').map(Number);
-      const utcDate = new Date(Date.UTC(year, month - 1, day));
-
-      if (bound === 'end') {
-        utcDate.setUTCDate(utcDate.getUTCDate() + 1);
-      }
-
-      return utcDate;
-    }
-
-    return this.parseDateTime(value, 'Data de filtro');
-  }
 
   async create(createBetDto: CreateBetDto) {
     const user = await this.prisma.user.findUnique({
@@ -59,7 +35,7 @@ export class BetService {
     }
 
     if (game.status !== 'SCHEDULED') {
-      throw new NotFoundException('Mercado fechado!');
+      throw new BadRequestException('Mercado fechado!');
     }
 
     const existingBet = await this.prisma.bet.findUnique({
@@ -85,10 +61,8 @@ export class BetService {
       where: {
         game: {
           gameDate: {
-            gte: startDate
-              ? this.parseDateFilter(startDate, 'start')
-              : undefined,
-            lt: endDate ? this.parseDateFilter(endDate, 'end') : undefined,
+            gte: startDate ? parseDateFilter(startDate, 'start') : undefined,
+            lt: endDate ? parseDateFilter(endDate, 'end') : undefined,
           },
         },
       },
@@ -105,12 +79,14 @@ export class BetService {
     startDate?: string,
     endDate?: string,
   ): Promise<ReturnBetPagination> {
+    if (isNaN(limit) || isNaN(page)) {
+      throw new NotAcceptableException('Página ou limite formato inválido!');
+    }
+
     const skip = (page - 1) * limit;
 
-    const start = startDate
-      ? this.parseDateFilter(startDate, 'start')
-      : undefined;
-    const end = endDate ? this.parseDateFilter(endDate, 'end') : undefined;
+    const start = startDate ? parseDateFilter(startDate, 'start') : undefined;
+    const end = endDate ? parseDateFilter(endDate, 'end') : undefined;
 
     const gameWhere: Prisma.GameWhereInput = {
       ...(startDate || endDate
@@ -137,17 +113,12 @@ export class BetService {
     });
 
     const gameIds = games.map((game) => game.id);
+    const pagination = createPagination(limit, page, count);
 
     if (gameIds.length === 0) {
-      const lastPage = Math.ceil(count / limit);
-
       return {
         data: [],
-        count,
-        currentPage: page,
-        nextPage: page < lastPage ? page + 1 : null,
-        prevPage: page > 1 ? page - 1 : null,
-        lastPage,
+        ...pagination,
       };
     }
 
@@ -174,15 +145,9 @@ export class BetService {
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
 
-    const lastPage = Math.ceil(count / limit);
-
     return {
       data: bets,
-      count,
-      currentPage: page,
-      nextPage: page < lastPage ? page + 1 : null,
-      prevPage: page > 1 ? page - 1 : null,
-      lastPage,
+      ...pagination,
     };
   }
 
