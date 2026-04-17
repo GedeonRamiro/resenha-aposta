@@ -4,6 +4,7 @@ import {
   IsISO8601,
   IsOptional,
   Matches,
+  IsUrl,
 } from 'class-validator';
 
 export class CreateGameDto {
@@ -16,9 +17,16 @@ export class CreateGameDto {
   awayTeam: string;
 
   @IsOptional()
+  @IsUrl({}, { message: 'Logo do time da casa deve ser uma URL válida!' })
+  homeTeamLogo?: string;
+
+  @IsOptional()
+  @IsUrl({}, { message: 'Logo do time visitante deve ser uma URL válida!' })
+  awayTeamLogo?: string;
+
   @IsString({ message: 'Campeonato/Liga deve ser uma string!' })
-  @MinLength(2, {
-    message: 'Campeonato/Liga deve ter pelo menos 2 caracteres!',
+  @MinLength(3, {
+    message: 'Campeonato/Liga deve ter pelo menos 3 caracteres!',
   })
   competition?: string;
 

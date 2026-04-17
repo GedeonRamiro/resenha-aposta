@@ -49,6 +49,8 @@ model Game {
 
   homeTeam String
   awayTeam String
+  homeTeamLogo String?
+  awayTeamLogo String?
   competition String?
 
   gameDate DateTime
@@ -87,7 +89,7 @@ model Bet {
   updatedAt DateTime @updatedAt
   lastEditedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@unique([userId, gameId])

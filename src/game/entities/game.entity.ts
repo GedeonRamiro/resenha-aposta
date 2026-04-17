@@ -4,6 +4,8 @@ export class GameEntity implements ReturnGameDto {
   id!: string;
   homeTeam!: string;
   awayTeam!: string;
+  homeTeamLogo!: string | null;
+  awayTeamLogo!: string | null;
   competition!: string | null;
   gameDate!: Date;
   betCloseAt!: Date;

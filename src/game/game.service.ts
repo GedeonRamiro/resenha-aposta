@@ -1,6 +1,7 @@
 ﻿import {
   BadRequestException,
   Injectable,
+  NotAcceptableException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,6 +10,8 @@ import { UpdateGameDto } from './dtos/update-game.dto';
 import { ReturnGamePagination } from './interface/return-game-pagination';
 import { Cron } from '@nestjs/schedule';
 import { GameStatus, Prisma } from '@prisma/client';
+import { createPagination } from 'src/utils/pagination';
+import { parseDateFilter, parseDateTime } from 'src/utils/dataTimeFilter';
 
 @Injectable()
 export class GameService {
@@ -40,41 +43,16 @@ export class GameService {
     `;
   }
 
-  private parseDateTime(value: string, fieldName: string): Date {
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException(`${fieldName} inválida`);
-    }
-
-    return parsed;
-  }
-
-  private parseDateFilter(value: string, bound: 'start' | 'end'): Date {
-    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-    if (isDateOnly) {
-      const [year, month, day] = value.split('-').map(Number);
-      const utcDate = new Date(Date.UTC(year, month - 1, day));
-
-      if (bound === 'end') {
-        utcDate.setUTCDate(utcDate.getUTCDate() + 1);
-      }
-
-      return utcDate;
-    }
-
-    return this.parseDateTime(value, 'Data de filtro');
-  }
-
   async create(dto: CreateGameDto) {
     return this.prisma.game.create({
       data: {
         homeTeam: dto.homeTeam,
         awayTeam: dto.awayTeam,
+        homeTeamLogo: dto.homeTeamLogo,
+        awayTeamLogo: dto.awayTeamLogo,
         competition: dto.competition,
-        gameDate: this.parseDateTime(dto.gameDate, 'Data do jogo'),
-        betCloseAt: this.parseDateTime(dto.betCloseAt, 'Data de fechamento'),
+        gameDate: parseDateTime(dto.gameDate, 'Data do jogo'),
+        betCloseAt: parseDateTime(dto.betCloseAt, 'Data de fechamento'),
         moreInfo: dto.moreInfo,
       },
     });
@@ -86,12 +64,14 @@ export class GameService {
     startDate?: string,
     endDate?: string,
   ): Promise<ReturnGamePagination> {
+    if (isNaN(limit) || isNaN(page)) {
+      throw new NotAcceptableException('Página ou limite formato inválido!');
+    }
+
     const skip = (page - 1) * limit;
 
-    const start = startDate
-      ? this.parseDateFilter(startDate, 'start')
-      : undefined;
-    const end = endDate ? this.parseDateFilter(endDate, 'end') : undefined;
+    const start = startDate ? parseDateFilter(startDate, 'start') : undefined;
+    const end = endDate ? parseDateFilter(endDate, 'end') : undefined;
 
     const where =
       startDate || endDate
@@ -112,15 +92,11 @@ export class GameService {
       orderBy: [{ createdAt: 'desc' }, { gameDate: 'desc' }],
     });
 
-    const lastPage = Math.ceil(count / limit);
+    const pagination = createPagination(limit, page, count);
 
     return {
       data: games,
-      count,
-      currentPage: page,
-      nextPage: page < lastPage ? page + 1 : null,
-      prevPage: page > 1 ? page - 1 : null,
-      lastPage,
+      ...pagination,
     };
   }
 
@@ -135,7 +111,7 @@ export class GameService {
     });
 
     if (!game) {
-      throw new NotFoundException('Jogo não encontrado');
+      throw new NotFoundException('Jogo não encontrado!');
     }
 
     return game;
@@ -156,17 +132,17 @@ export class GameService {
         nextAwayScore === undefined)
     ) {
       throw new BadRequestException(
-        'Para finalizar o jogo, informe homeScore e awayScore.',
+        'Para finalizar o jogo, informe o placar de casa e o placar de fora!',
       );
     }
 
     const data = {
       ...dto,
       gameDate: dto.gameDate
-        ? this.parseDateTime(dto.gameDate, 'Data do jogo')
+        ? parseDateTime(dto.gameDate, 'Data do jogo')
         : undefined,
       betCloseAt: dto.betCloseAt
-        ? this.parseDateTime(dto.betCloseAt, 'Data de fechamento')
+        ? parseDateTime(dto.betCloseAt, 'Data de fechamento')
         : undefined,
     };
 
@@ -196,14 +172,8 @@ export class GameService {
   async remove(id: string) {
     await this.findOne(id);
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.bet.deleteMany({
-        where: { gameId: id },
-      });
-
-      return tx.game.delete({
-        where: { id },
-      });
+    return this.prisma.game.delete({
+      where: { id },
     });
   }
 
