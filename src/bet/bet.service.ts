@@ -102,7 +102,11 @@ export class BetService {
       },
     };
 
-    const count = await this.prisma.game.count({ where: gameWhere });
+    const count = await this.prisma.bet.count({
+      where: {
+        game: gameWhere,
+      },
+    });
 
     const games = await this.prisma.game.findMany({
       where: gameWhere,
