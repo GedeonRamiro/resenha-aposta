@@ -102,10 +102,9 @@ export class BetService {
       },
     };
 
-    const count = await this.prisma.bet.count({
-      where: {
-        game: gameWhere,
-      },
+    const count = await this.prisma.game.count({ where: gameWhere });
+    const totalBets = await this.prisma.bet.count({
+      where: { game: gameWhere },
     });
 
     const games = await this.prisma.game.findMany({
@@ -122,6 +121,7 @@ export class BetService {
     if (gameIds.length === 0) {
       return {
         data: [],
+        totalBets,
         ...pagination,
       };
     }
@@ -151,6 +151,7 @@ export class BetService {
 
     return {
       data: bets,
+      totalBets,
       ...pagination,
     };
   }
