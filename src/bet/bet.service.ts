@@ -17,7 +17,7 @@ import { parseDateFilter } from 'src/utils/dataTimeFilter';
 export class BetService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createBetDto: CreateBetDto) {
+  async create(createBetDto: CreateBetDto & { userId: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: createBetDto.userId },
     });

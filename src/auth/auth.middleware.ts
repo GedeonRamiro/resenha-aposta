@@ -17,10 +17,10 @@ export class AuthMiddleware implements NestMiddleware {
     const token = authHeader.substring(7);
 
     try {
-      const payload = jwt.verify(
-        token,
-        process.env.JWT_SECRET || 'default-secret',
-      ) as { userId: string };
+      const secret = process.env.JWT_SECRET;
+      if (!secret) throw new Error('JWT_SECRET não está definido');
+
+      const payload = jwt.verify(token, secret) as { userId: string };
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.userId },

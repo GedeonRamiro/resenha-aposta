@@ -26,8 +26,8 @@ export class BetController {
   @Post()
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('ADMIN', 'PLAYER', 'MODERATOR')
-  create(@Body() createBetDto: CreateBetDto) {
-    return this.betService.create(createBetDto);
+  create(@Body() createBetDto: CreateBetDto, @CurrentUser() user: User) {
+    return this.betService.create({ ...createBetDto, userId: user.id });
   }
 
   @Get()

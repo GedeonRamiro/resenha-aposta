@@ -7,9 +7,6 @@ enum BetOption {
 }
 
 export class CreateBetDto {
-  @IsString({ message: 'ID do usuário deve ser uma string!' })
-  userId: string;
-
   @IsString({ message: 'ID do jogo deve ser uma string!' })
   gameId: string;
 

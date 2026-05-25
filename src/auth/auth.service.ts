@@ -24,11 +24,10 @@ export class AuthService {
         },
       }));
 
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET || 'default-secret',
-      { expiresIn: '7d' },
-    );
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET não está definido');
+
+    const token = jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
 
     return {
       user,
