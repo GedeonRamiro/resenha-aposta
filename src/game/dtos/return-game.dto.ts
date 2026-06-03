@@ -9,8 +9,16 @@ export class ReturnGameDto {
   betCloseAt: Date;
   moreInfo: string | null;
   status: string;
+  gameType: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  competitionId: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  secondLegHomeScore: number | null;
+  secondLegAwayScore: number | null;
+  penaltyHomeScore: number | null;
+  penaltyAwayScore: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -5,15 +5,54 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { ReturnUserPagination } from './interface/return-user-pagination';
 import { createPagination } from 'src/utils/pagination';
 
+type UserWithBetsAndGameRelations = Prisma.UserGetPayload<{
+  include: {
+    bets: {
+      include: {
+        game: {
+          include: {
+            homeTeamRef: true;
+            awayTeamRef: true;
+            competitionRef: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
 @Injectable()
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private mapUserResponse(user: UserWithBetsAndGameRelations) {
+    return {
+      ...user,
+      bets: user.bets.map((bet) => {
+        const { homeTeamRef, awayTeamRef, competitionRef, ...gameWithoutRefs } =
+          bet.game;
+
+        return {
+          ...bet,
+          game: {
+            ...gameWithoutRefs,
+            homeTeam: homeTeamRef?.name ?? '',
+            awayTeam: awayTeamRef?.name ?? '',
+            homeTeamLogo: homeTeamRef?.logoUrl ?? null,
+            awayTeamLogo: awayTeamRef?.logoUrl ?? null,
+            competition: competitionRef?.name ?? null,
+          },
+        };
+      }),
+    };
+  }
 
   async create(createUserDto: CreateUserDto) {
     return await this.prisma.user.create({
@@ -39,7 +78,13 @@ export class UserService {
       include: {
         bets: {
           include: {
-            game: true,
+            game: {
+              include: {
+                homeTeamRef: true,
+                awayTeamRef: true,
+                competitionRef: true,
+              },
+            },
           },
         },
       },
@@ -48,7 +93,7 @@ export class UserService {
     const pagination = createPagination(limit, page, count);
 
     return {
-      data: users,
+      data: users.map((user) => this.mapUserResponse(user)),
       ...pagination,
     };
   }
@@ -62,7 +107,13 @@ export class UserService {
             createdAt: 'desc',
           },
           include: {
-            game: true,
+            game: {
+              include: {
+                homeTeamRef: true,
+                awayTeamRef: true,
+                competitionRef: true,
+              },
+            },
           },
         },
       },
@@ -72,7 +123,7 @@ export class UserService {
       throw new NotFoundException('Usuário não encontrado!');
     }
 
-    return user;
+    return this.mapUserResponse(user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {

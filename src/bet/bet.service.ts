@@ -9,15 +9,47 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBetDto } from './dtos/create-bet.dto';
 import { UpdateBetDto } from './dtos/update-bet.dto';
 import { ReturnBetPagination } from './interface/return-bet-pagination';
-import { Prisma, User } from '@prisma/client';
+import { BetOption, GameType, Prisma, User } from '@prisma/client';
 import { createPagination } from 'src/utils/pagination';
 import { parseDateFilter } from 'src/utils/dataTimeFilter';
+
+type BetWithGameRelations = Prisma.BetGetPayload<{
+  include: {
+    user: true;
+    game: {
+      include: {
+        homeTeamRef: true;
+        awayTeamRef: true;
+        competitionRef: true;
+      };
+    };
+  };
+}>;
 
 @Injectable()
 export class BetService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private mapBetResponse<T extends BetWithGameRelations>(bet: T) {
+    const { homeTeamRef, awayTeamRef, competitionRef, ...gameWithoutRefs } =
+      bet.game;
+
+    return {
+      ...bet,
+      game: {
+        ...gameWithoutRefs,
+        homeTeam: homeTeamRef?.name ?? '',
+        awayTeam: awayTeamRef?.name ?? '',
+        homeTeamLogo: homeTeamRef?.logoUrl ?? null,
+        awayTeamLogo: awayTeamRef?.logoUrl ?? null,
+        competition: competitionRef?.name ?? null,
+      },
+    };
+  }
+
   async create(createBetDto: CreateBetDto & { userId: string }) {
+    const betOption = createBetDto.option as BetOption;
+
     const user = await this.prisma.user.findUnique({
       where: { id: createBetDto.userId },
     });
@@ -36,6 +68,12 @@ export class BetService {
 
     if (game.status !== 'SCHEDULED') {
       throw new BadRequestException('Mercado fechado!');
+    }
+
+    if (game.gameType === GameType.KNOCKOUT && betOption === BetOption.DRAW) {
+      throw new BadRequestException(
+        'Para jogos mata-mata, selecione apenas casa ou visitante (sem empate).',
+      );
     }
 
     const existingBet = await this.prisma.bet.findUnique({
@@ -57,20 +95,28 @@ export class BetService {
   }
 
   async findAll(startDate?: string, endDate?: string) {
-    return await this.prisma.bet.findMany({
-      where: {
-        game: {
-          gameDate: {
-            gte: startDate ? parseDateFilter(startDate, 'start') : undefined,
-            lt: endDate ? parseDateFilter(endDate, 'end') : undefined,
+    return await this.prisma.bet
+      .findMany({
+        where: {
+          game: {
+            gameDate: {
+              gte: startDate ? parseDateFilter(startDate, 'start') : undefined,
+              lt: endDate ? parseDateFilter(endDate, 'end') : undefined,
+            },
           },
         },
-      },
-      include: {
-        game: true,
-        user: true,
-      },
-    });
+        include: {
+          game: {
+            include: {
+              homeTeamRef: true,
+              awayTeamRef: true,
+              competitionRef: true,
+            },
+          },
+          user: true,
+        },
+      })
+      .then((bets) => bets.map((bet) => this.mapBetResponse(bet)));
   }
 
   async getAll(
@@ -132,7 +178,16 @@ export class BetService {
           in: gameIds,
         },
       },
-      include: { game: true, user: true },
+      include: {
+        game: {
+          include: {
+            homeTeamRef: true,
+            awayTeamRef: true,
+            competitionRef: true,
+          },
+        },
+        user: true,
+      },
       orderBy: [{ createdAt: 'desc' }],
     });
 
@@ -150,7 +205,7 @@ export class BetService {
     });
 
     return {
-      data: bets,
+      data: bets.map((bet) => this.mapBetResponse(bet)),
       totalBets,
       ...pagination,
     };
@@ -160,7 +215,13 @@ export class BetService {
     const bet = await this.prisma.bet.findUnique({
       where: { id },
       include: {
-        game: true,
+        game: {
+          include: {
+            homeTeamRef: true,
+            awayTeamRef: true,
+            competitionRef: true,
+          },
+        },
         user: true,
       },
     });
@@ -169,7 +230,7 @@ export class BetService {
       throw new NotFoundException('Aposta não encontrada!');
     }
 
-    return bet;
+    return this.mapBetResponse(bet);
   }
 
   async findByUser(userId: string) {
@@ -184,6 +245,55 @@ export class BetService {
     return await this.prisma.bet.findMany({
       where: { userId },
     });
+  }
+
+  async getByUserPaginated(
+    userId: string,
+    limit: number,
+    page: number,
+  ): Promise<ReturnBetPagination> {
+    if (isNaN(limit) || isNaN(page)) {
+      throw new NotAcceptableException('Página ou limite formato inválido!');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado!');
+    }
+
+    const skip = (page - 1) * limit;
+
+    const count = await this.prisma.bet.count({
+      where: { userId },
+    });
+
+    const bets = await this.prisma.bet.findMany({
+      where: { userId },
+      include: {
+        game: {
+          include: {
+            homeTeamRef: true,
+            awayTeamRef: true,
+            competitionRef: true,
+          },
+        },
+        user: true,
+      },
+      take: limit,
+      skip,
+      orderBy: [{ createdAt: 'desc' }],
+    });
+
+    const pagination = createPagination(limit, page, count);
+
+    return {
+      data: bets.map((bet) => this.mapBetResponse(bet)),
+      totalBets: count,
+      ...pagination,
+    };
   }
 
   async findByGame(gameId: string) {
@@ -201,10 +311,21 @@ export class BetService {
   }
 
   async update(id: string, updateBetDto: UpdateBetDto, requester: User) {
+    const betOption = updateBetDto.option as BetOption;
+
     const currentBet = await this.findOne(id);
 
     if (currentBet.game.status !== 'SCHEDULED') {
       throw new BadRequestException('Mercado fechado!');
+    }
+
+    if (
+      currentBet.game.gameType === GameType.KNOCKOUT &&
+      betOption === BetOption.DRAW
+    ) {
+      throw new BadRequestException(
+        'Para jogos mata-mata, selecione apenas casa ou visitante (sem empate).',
+      );
     }
 
     if (requester.role !== 'ADMIN' && currentBet.userId !== requester.id) {

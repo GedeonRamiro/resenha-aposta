@@ -52,6 +52,18 @@ export class BetController {
     return this.betService.findByUser(userId);
   }
 
+  @Get('user/:userId/paginated')
+  findByUserPaginated(
+    @Param('userId') userId: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+  ) {
+    const limitNum = limit ? Number(limit) : Environment.LINE_LIMIT;
+    const pageNum = page ? Number(page) : Environment.CURRENT_PAGE;
+
+    return this.betService.getByUserPaginated(userId, limitNum, pageNum);
+  }
+
   @Get('game/:gameId')
   findByGame(@Param('gameId') gameId: string) {
     return this.betService.findByGame(gameId);

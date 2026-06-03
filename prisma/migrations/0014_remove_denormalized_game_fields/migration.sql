@@ -1,0 +1,8 @@
+DROP INDEX IF EXISTS "Game_competition_idx";
+
+ALTER TABLE "Game"
+DROP COLUMN IF EXISTS "homeTeam",
+DROP COLUMN IF EXISTS "awayTeam",
+DROP COLUMN IF EXISTS "homeTeamLogo",
+DROP COLUMN IF EXISTS "awayTeamLogo",
+DROP COLUMN IF EXISTS "competition";

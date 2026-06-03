@@ -1,7 +1,7 @@
-import { UserEntity } from '../../user/entities/user.entity';
+import { ReturnUserDto } from '../../user/dtos/return-user.dto';
 
 export interface RankingItem {
-  user: UserEntity;
+  user: ReturnUserDto;
   points: number;
   bets: number;
 }

@@ -19,6 +19,11 @@ enum GameStatus {
   FINISHED
 }
 
+enum GameType {
+  LEAGUE_GROUP
+  KNOCKOUT
+}
+
 enum Role {
   ADMIN
   MODERATOR
@@ -44,14 +49,33 @@ model User {
   updatedAt DateTime  @updatedAt
 }
 
-model Game {
+model Team {
   id String @id @default(cuid())
 
-  homeTeam String
-  awayTeam String
-  homeTeamLogo String?
-  awayTeamLogo String?
-  competition String?
+  name String @unique
+  logoUrl String?
+
+  homeGames Game[] @relation("GameHomeTeam")
+  awayGames Game[] @relation("GameAwayTeam")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Competition {
+  id String @id @default(cuid())
+
+  name String @unique
+  logoUrl String?
+
+  games Game[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Game {
+  id String @id @default(cuid())
 
   gameDate DateTime
   betCloseAt DateTime
@@ -59,18 +83,32 @@ model Game {
   moreInfo String? @db.Text
 
   status GameStatus @default(SCHEDULED)
+  gameType GameType @default(LEAGUE_GROUP)
+  homeTeamId String?
+  awayTeamId String?
+  competitionId String?
 
   homeScore Int?
   awayScore Int?
+  secondLegHomeScore Int?
+  secondLegAwayScore Int?
+  penaltyHomeScore Int?
+  penaltyAwayScore Int?
 
   bets Bet[]
+  homeTeamRef Team? @relation("GameHomeTeam", fields: [homeTeamId], references: [id], onDelete: SetNull)
+  awayTeamRef Team? @relation("GameAwayTeam", fields: [awayTeamId], references: [id], onDelete: SetNull)
+  competitionRef Competition? @relation(fields: [competitionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([gameDate])
   @@index([status])
-  @@index([competition])
+  @@index([gameType])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([competitionId])
 }
 
 model Bet {
@@ -108,5 +146,13 @@ model BlogPost {
   published Boolean  @default(true)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Config {
+  id                     String @id @default("singleton")
+  betCloseMinutesBefore  Int    @default(30)
+  rankingSeasons         Json   @default("[]")
+
   updatedAt DateTime @updatedAt
 }

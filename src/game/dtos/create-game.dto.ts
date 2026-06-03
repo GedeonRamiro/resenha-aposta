@@ -4,32 +4,17 @@ import {
   IsISO8601,
   IsOptional,
   Matches,
-  IsUrl,
+  IsEnum,
+  IsInt,
+  Min,
 } from 'class-validator';
 
+enum GameType {
+  LEAGUE_GROUP = 'LEAGUE_GROUP',
+  KNOCKOUT = 'KNOCKOUT',
+}
+
 export class CreateGameDto {
-  @IsString({ message: 'Time da casa deve ser uma string!' })
-  @MinLength(3, { message: 'Time da casa não pode estar vazio!' })
-  homeTeam: string;
-
-  @IsString({ message: 'Time visitante deve ser uma string!' })
-  @MinLength(3, { message: 'Time visitante não pode estar vazio!' })
-  awayTeam: string;
-
-  @IsOptional()
-  @IsUrl({}, { message: 'Logo do time da casa deve ser uma URL válida!' })
-  homeTeamLogo?: string;
-
-  @IsOptional()
-  @IsUrl({}, { message: 'Logo do time visitante deve ser uma URL válida!' })
-  awayTeamLogo?: string;
-
-  @IsString({ message: 'Campeonato/Liga deve ser uma string!' })
-  @MinLength(3, {
-    message: 'Campeonato/Liga deve ter pelo menos 3 caracteres!',
-  })
-  competition?: string;
-
   @IsISO8601(undefined, {
     message: 'Data do jogo deve estar em formato ISO8601!',
   })
@@ -38,13 +23,47 @@ export class CreateGameDto {
   })
   gameDate: string;
 
-  @IsISO8601(undefined, {
-    message: 'Data de fechamento deve estar em formato ISO8601!',
+  @IsOptional()
+  @IsEnum(GameType, {
+    message: 'Tipo do jogo deve ser LEAGUE_GROUP ou KNOCKOUT!',
   })
-  @Matches(/(Z|[+-]\d{2}:\d{2})$/, {
-    message: 'Data de fechamento deve incluir timezone (Z ou ±HH:mm)!',
+  gameType?: GameType;
+
+  @IsOptional()
+  @IsInt({ message: 'Gols do time da casa deve ser um número inteiro!' })
+  homeScore?: number;
+
+  @IsOptional()
+  @IsInt({ message: 'Gols do time visitante deve ser um número inteiro!' })
+  awayScore?: number;
+
+  @IsOptional()
+  @IsInt({ message: 'Placar da volta da casa deve ser um número inteiro!' })
+  @Min(0, {
+    message: 'Placar da volta da casa deve ser maior ou igual a zero!',
   })
-  betCloseAt: string;
+  secondLegHomeScore?: number;
+
+  @IsOptional()
+  @IsInt({
+    message: 'Placar da volta do visitante deve ser um número inteiro!',
+  })
+  @Min(0, {
+    message: 'Placar da volta do visitante deve ser maior ou igual a zero!',
+  })
+  secondLegAwayScore?: number;
+
+  @IsString({ message: 'ID do time da casa deve ser uma string!' })
+  @MinLength(1, { message: 'ID do time da casa é obrigatório!' })
+  homeTeamId: string;
+
+  @IsString({ message: 'ID do time visitante deve ser uma string!' })
+  @MinLength(1, { message: 'ID do time visitante é obrigatório!' })
+  awayTeamId: string;
+
+  @IsString({ message: 'ID da competição deve ser uma string!' })
+  @MinLength(1, { message: 'ID da competição é obrigatório!' })
+  competitionId: string;
 
   @IsOptional()
   @IsString({ message: 'Mais informações deve ser uma string!' })

@@ -5,22 +5,91 @@
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '../config/config.service';
 import { CreateGameDto } from './dtos/create-game.dto';
 import { UpdateGameDto } from './dtos/update-game.dto';
 import { ReturnGamePagination } from './interface/return-game-pagination';
 import { Cron } from '@nestjs/schedule';
-import { GameStatus, Prisma } from '@prisma/client';
+import { GameStatus, GameType, Prisma } from '@prisma/client';
 import { createPagination } from 'src/utils/pagination';
 import { parseDateFilter, parseDateTime } from 'src/utils/dataTimeFilter';
+import {
+  getKnockoutWinnerOptionForGame,
+  resolveRegularScore,
+} from './utils/game-score.utils';
+import { mapGameResponse } from './utils/game-response.mapper';
 
 @Injectable()
 export class GameService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private getResult(home: number, away: number) {
     if (home > away) return 'HOME_WIN';
     if (home < away) return 'AWAY_WIN';
     return 'DRAW';
+  }
+
+  private async getTeamByIdOrFail(teamId: string) {
+    const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) {
+      throw new NotFoundException('Time não encontrado!');
+    }
+
+    return team;
+  }
+
+  private async getCompetitionByIdOrFail(competitionId: string) {
+    const competition = await this.prisma.competition.findUnique({
+      where: { id: competitionId },
+    });
+    if (!competition) {
+      throw new NotFoundException('Competição não encontrada!');
+    }
+
+    return competition;
+  }
+
+  private async settleGameBetsByOption(
+    tx: Prisma.TransactionClient,
+    gameId: string,
+    option: 'HOME_WIN' | 'AWAY_WIN' | 'DRAW',
+  ): Promise<void> {
+    const now = new Date();
+
+    await tx.$executeRaw`
+      UPDATE "Bet"
+      SET
+        "isCorrect" = (CASE WHEN option = ${option}::"BetOption" THEN true ELSE false END),
+        "pointsAwarded" = (CASE WHEN option = ${option}::"BetOption" THEN 1 ELSE 0 END),
+        "settledAt" = ${now}
+      WHERE "gameId" = ${gameId}
+    `;
+  }
+
+  private async settleKnockoutBets(
+    tx: Prisma.TransactionClient,
+    game: {
+      id: string;
+      gameType: GameType;
+      homeScore: number | null;
+      awayScore: number | null;
+      secondLegHomeScore: number | null;
+      secondLegAwayScore: number | null;
+      penaltyHomeScore: number | null;
+      penaltyAwayScore: number | null;
+    },
+  ): Promise<void> {
+    const option = getKnockoutWinnerOptionForGame(game);
+    if (!option) {
+      throw new BadRequestException(
+        'No mata-mata, em caso de empate, informe os pênaltis para definir green/red.',
+      );
+    }
+
+    await this.settleGameBetsByOption(tx, game.id, option);
   }
 
   private async settleGameBets(
@@ -30,32 +99,45 @@ export class GameService {
     awayScore: number,
   ): Promise<void> {
     const result = this.getResult(homeScore, awayScore);
-    const now = new Date();
-
-    // Use raw SQL to update bets without triggering updatedAt auto-update
-    await tx.$executeRaw`
-      UPDATE "Bet"
-      SET
-        "isCorrect" = (CASE WHEN option = ${result}::"BetOption" THEN true ELSE false END),
-        "pointsAwarded" = (CASE WHEN option = ${result}::"BetOption" THEN 1 ELSE 0 END),
-        "settledAt" = ${now}
-      WHERE "gameId" = ${gameId}
-    `;
+    await this.settleGameBetsByOption(tx, gameId, result);
   }
 
   async create(dto: CreateGameDto) {
-    return this.prisma.game.create({
+    const config = await this.configService.get();
+    const gameDate = parseDateTime(dto.gameDate, 'Data do jogo');
+    const betCloseAt = new Date(
+      gameDate.getTime() - config.betCloseMinutesBefore * 60 * 1000,
+    );
+
+    const gameType = dto.gameType ?? GameType.LEAGUE_GROUP;
+    const isKnockoutGameType = String(gameType) === 'KNOCKOUT';
+
+    await this.getTeamByIdOrFail(dto.homeTeamId);
+    await this.getTeamByIdOrFail(dto.awayTeamId);
+    await this.getCompetitionByIdOrFail(dto.competitionId);
+
+    const createdGame = await this.prisma.game.create({
       data: {
-        homeTeam: dto.homeTeam,
-        awayTeam: dto.awayTeam,
-        homeTeamLogo: dto.homeTeamLogo,
-        awayTeamLogo: dto.awayTeamLogo,
-        competition: dto.competition,
-        gameDate: parseDateTime(dto.gameDate, 'Data do jogo'),
-        betCloseAt: parseDateTime(dto.betCloseAt, 'Data de fechamento'),
+        homeTeamId: dto.homeTeamId,
+        awayTeamId: dto.awayTeamId,
+        competitionId: dto.competitionId,
+        gameDate,
+        betCloseAt,
+        gameType,
+        homeScore: dto.homeScore,
+        awayScore: dto.awayScore,
+        secondLegHomeScore: isKnockoutGameType ? dto.secondLegHomeScore : null,
+        secondLegAwayScore: isKnockoutGameType ? dto.secondLegAwayScore : null,
         moreInfo: dto.moreInfo,
       },
+      include: {
+        homeTeamRef: true,
+        awayTeamRef: true,
+        competitionRef: true,
+      },
     });
+
+    return mapGameResponse(createdGame);
   }
 
   async getAll(
@@ -90,12 +172,17 @@ export class GameService {
       take: limit,
       skip,
       orderBy: [{ createdAt: 'desc' }, { gameDate: 'desc' }],
+      include: {
+        homeTeamRef: true,
+        awayTeamRef: true,
+        competitionRef: true,
+      },
     });
 
     const pagination = createPagination(limit, page, count);
 
     return {
-      data: games,
+      data: games.map((game) => mapGameResponse(game)),
       ...pagination,
     };
   }
@@ -104,6 +191,9 @@ export class GameService {
     const game = await this.prisma.game.findUnique({
       where: { id },
       include: {
+        homeTeamRef: true,
+        awayTeamRef: true,
+        competitionRef: true,
         bets: {
           include: { user: true },
         },
@@ -114,58 +204,158 @@ export class GameService {
       throw new NotFoundException('Jogo não encontrado!');
     }
 
-    return game;
+    return mapGameResponse(game);
   }
 
   async update(id: string, dto: UpdateGameDto) {
     const currentGame = await this.findOne(id);
 
     const nextStatus = dto.status ?? currentGame.status;
-    const nextHomeScore = dto.homeScore ?? currentGame.homeScore;
-    const nextAwayScore = dto.awayScore ?? currentGame.awayScore;
+    const resolvedGameType = dto.gameType ?? currentGame.gameType;
+    const resolvedSecondLegHomeScore =
+      dto.secondLegHomeScore ?? currentGame.secondLegHomeScore;
+    const resolvedSecondLegAwayScore =
+      dto.secondLegAwayScore ?? currentGame.secondLegAwayScore;
 
-    if (
-      nextStatus === GameStatus.FINISHED &&
-      (nextHomeScore === null ||
-        nextHomeScore === undefined ||
-        nextAwayScore === null ||
-        nextAwayScore === undefined)
-    ) {
+    const regularScore = resolveRegularScore({
+      gameType: resolvedGameType,
+      homeScore: dto.homeScore ?? currentGame.homeScore,
+      awayScore: dto.awayScore ?? currentGame.awayScore,
+      secondLegHomeScore: resolvedSecondLegHomeScore,
+      secondLegAwayScore: resolvedSecondLegAwayScore,
+    });
+
+    if (nextStatus === GameStatus.FINISHED && !regularScore) {
       throw new BadRequestException(
-        'Para finalizar o jogo, informe o placar de casa e o placar de fora!',
+        'Para finalizar o jogo, informe placar simples ou os placares de ida e volta de casa e visitante!',
       );
     }
 
-    const data = {
-      ...dto,
+    let resolvedHomeTeamId: string | undefined;
+    let resolvedAwayTeamId: string | undefined;
+    let resolvedCompetitionId: string | undefined;
+    if (dto.homeTeamId) {
+      const homeTeam = await this.getTeamByIdOrFail(dto.homeTeamId);
+      resolvedHomeTeamId = homeTeam.id;
+    }
+
+    if (dto.awayTeamId) {
+      const awayTeam = await this.getTeamByIdOrFail(dto.awayTeamId);
+      resolvedAwayTeamId = awayTeam.id;
+    }
+
+    if (dto.competitionId) {
+      const competition = await this.getCompetitionByIdOrFail(
+        dto.competitionId,
+      );
+      resolvedCompetitionId = competition.id;
+    }
+
+    const resolvedPenaltyHomeScore =
+      dto.penaltyHomeScore ?? currentGame.penaltyHomeScore;
+    const resolvedPenaltyAwayScore =
+      dto.penaltyAwayScore ?? currentGame.penaltyAwayScore;
+
+    if (
+      nextStatus === GameStatus.FINISHED &&
+      resolvedGameType === GameType.KNOCKOUT &&
+      regularScore &&
+      regularScore.home === regularScore.away &&
+      (resolvedPenaltyHomeScore === null ||
+        resolvedPenaltyAwayScore === null ||
+        resolvedPenaltyHomeScore === resolvedPenaltyAwayScore)
+    ) {
+      throw new BadRequestException(
+        'No mata-mata empatado, informe pênaltis válidos para calcular green/red.',
+      );
+    }
+
+    const hasRegularScore = !!regularScore;
+    const isKnockoutDraw =
+      resolvedGameType === GameType.KNOCKOUT &&
+      hasRegularScore &&
+      regularScore.home === regularScore.away;
+    const hasValidPenaltiesForKnockoutDraw =
+      resolvedPenaltyHomeScore !== null &&
+      resolvedPenaltyAwayScore !== null &&
+      resolvedPenaltyHomeScore !== resolvedPenaltyAwayScore;
+
+    const requestedStatus = dto.status ?? currentGame.status;
+
+    const shouldAutoFinish =
+      requestedStatus !== GameStatus.FINISHED &&
+      currentGame.status !== GameStatus.FINISHED &&
+      hasRegularScore &&
+      (!isKnockoutDraw || hasValidPenaltiesForKnockoutDraw);
+
+    const data: Prisma.GameUncheckedUpdateInput = {
       gameDate: dto.gameDate
         ? parseDateTime(dto.gameDate, 'Data do jogo')
         : undefined,
-      betCloseAt: dto.betCloseAt
-        ? parseDateTime(dto.betCloseAt, 'Data de fechamento')
-        : undefined,
+      homeScore: dto.homeScore,
+      awayScore: dto.awayScore,
+      secondLegHomeScore:
+        resolvedGameType === GameType.KNOCKOUT
+          ? resolvedSecondLegHomeScore
+          : null,
+      secondLegAwayScore:
+        resolvedGameType === GameType.KNOCKOUT
+          ? resolvedSecondLegAwayScore
+          : null,
+      moreInfo: dto.moreInfo,
+      gameType: resolvedGameType,
+      status: shouldAutoFinish ? GameStatus.FINISHED : dto.status,
+      penaltyHomeScore:
+        resolvedGameType === GameType.KNOCKOUT ? dto.penaltyHomeScore : null,
+      penaltyAwayScore:
+        resolvedGameType === GameType.KNOCKOUT ? dto.penaltyAwayScore : null,
+      homeTeamId: resolvedHomeTeamId,
+      awayTeamId: resolvedAwayTeamId,
+      competitionId: resolvedCompetitionId,
+      betCloseAt: undefined,
     };
+
+    if (dto.gameDate) {
+      const config = await this.configService.get();
+      const gameDate = parseDateTime(dto.gameDate, 'Data do jogo');
+      data.betCloseAt = new Date(
+        gameDate.getTime() - config.betCloseMinutesBefore * 60 * 1000,
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updatedGame = await tx.game.update({
         where: { id },
         data,
+        include: {
+          homeTeamRef: true,
+          awayTeamRef: true,
+          competitionRef: true,
+        },
       });
 
-      if (
-        updatedGame.status === GameStatus.FINISHED &&
-        updatedGame.homeScore !== null &&
-        updatedGame.awayScore !== null
-      ) {
-        await this.settleGameBets(
-          tx,
-          updatedGame.id,
-          updatedGame.homeScore,
-          updatedGame.awayScore,
-        );
+      const finalRegularScore = resolveRegularScore({
+        gameType: updatedGame.gameType,
+        homeScore: updatedGame.homeScore,
+        awayScore: updatedGame.awayScore,
+        secondLegHomeScore: updatedGame.secondLegHomeScore,
+        secondLegAwayScore: updatedGame.secondLegAwayScore,
+      });
+
+      if (updatedGame.status === GameStatus.FINISHED && finalRegularScore) {
+        if (updatedGame.gameType === GameType.KNOCKOUT) {
+          await this.settleKnockoutBets(tx, updatedGame);
+        } else {
+          await this.settleGameBets(
+            tx,
+            updatedGame.id,
+            finalRegularScore.home,
+            finalRegularScore.away,
+          );
+        }
       }
 
-      return updatedGame;
+      return mapGameResponse(updatedGame);
     });
   }
 

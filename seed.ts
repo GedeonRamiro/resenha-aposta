@@ -21,9 +21,24 @@ async function main() {
   // Criar jogo
   await prisma.game.create({
     data: {
-      homeTeam: 'Botafogo',
-      awayTeam: 'Mirassol',
-      competition: 'Campeonato Brasileiro Série A',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Botafogo' },
+          create: { name: 'Botafogo' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Mirassol' },
+          create: { name: 'Mirassol' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série A' },
+          create: { name: 'Campeonato Brasileiro Série A' },
+        },
+      },
       gameDate: new Date('2026-04-01T22:30:00Z'),
       betCloseAt: new Date('2026-04-01T22:20:00Z'),
       moreInfo: `
@@ -52,9 +67,24 @@ Mirassol: 20%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Internacional',
-      awayTeam: 'São Paulo',
-      competition: 'Campeonato Brasileiro Série A',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Internacional' },
+          create: { name: 'Internacional' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'São Paulo' },
+          create: { name: 'São Paulo' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série A' },
+          create: { name: 'Campeonato Brasileiro Série A' },
+        },
+      },
       gameDate: new Date('2026-04-01T22:30:00Z'),
       betCloseAt: new Date('2026-04-01T22:20:00Z'),
       moreInfo: `
@@ -83,9 +113,24 @@ São Paulo: 30%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Bahia',
-      awayTeam: 'Athletico-PR',
-      competition: 'Campeonato Brasileiro Série A',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Bahia' },
+          create: { name: 'Bahia' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Athletico-PR' },
+          create: { name: 'Athletico-PR' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série A' },
+          create: { name: 'Campeonato Brasileiro Série A' },
+        },
+      },
       gameDate: new Date('2026-04-01T23:00:00Z'),
       betCloseAt: new Date('2026-04-01T22:50:00Z'),
       moreInfo: `
@@ -114,9 +159,24 @@ Athletico-PR: 35%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Cruzeiro',
-      awayTeam: 'Vitória',
-      competition: 'Campeonato Brasileiro Série A',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Cruzeiro' },
+          create: { name: 'Cruzeiro' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Vitória' },
+          create: { name: 'Vitória' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série A' },
+          create: { name: 'Campeonato Brasileiro Série A' },
+        },
+      },
       gameDate: new Date('2026-04-01T23:00:00Z'),
       betCloseAt: new Date('2026-04-01T22:50:00Z'),
       moreInfo: `
@@ -145,9 +205,24 @@ Vitória: 25%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Coritiba',
-      awayTeam: 'Vasco',
-      competition: 'Campeonato Brasileiro Série A',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Coritiba' },
+          create: { name: 'Coritiba' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Vasco' },
+          create: { name: 'Vasco' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série A' },
+          create: { name: 'Campeonato Brasileiro Série A' },
+        },
+      },
       gameDate: new Date('2026-04-01T23:30:00Z'),
       betCloseAt: new Date('2026-04-01T23:20:00Z'),
       moreInfo: `
@@ -176,9 +251,24 @@ Vasco: 35%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Fluminense',
-      awayTeam: 'Corinthians',
-      competition: 'Campeonato Brasileiro Série A',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Fluminense' },
+          create: { name: 'Fluminense' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Corinthians' },
+          create: { name: 'Corinthians' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série A' },
+          create: { name: 'Campeonato Brasileiro Série A' },
+        },
+      },
       gameDate: new Date('2026-04-02T00:30:00Z'),
       betCloseAt: new Date('2026-04-02T00:20:00Z'),
       moreInfo: `
@@ -207,9 +297,24 @@ Corinthians: 30%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'América-MG',
-      awayTeam: 'Botafogo-SP',
-      competition: 'Campeonato Brasileiro Série B',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'América-MG' },
+          create: { name: 'América-MG' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Botafogo-SP' },
+          create: { name: 'Botafogo-SP' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série B' },
+          create: { name: 'Campeonato Brasileiro Série B' },
+        },
+      },
       gameDate: new Date('2026-04-01T21:00:00Z'),
       betCloseAt: new Date('2026-04-01T20:50:00Z'),
       moreInfo: `
@@ -238,9 +343,24 @@ Botafogo-SP: 25%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Sport',
-      awayTeam: 'Vila Nova',
-      competition: 'Campeonato Brasileiro Série B',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Sport' },
+          create: { name: 'Sport' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Vila Nova' },
+          create: { name: 'Vila Nova' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série B' },
+          create: { name: 'Campeonato Brasileiro Série B' },
+        },
+      },
       gameDate: new Date('2026-04-01T22:00:00Z'),
       betCloseAt: new Date('2026-04-01T21:50:00Z'),
       moreInfo: `
@@ -269,9 +389,24 @@ Vila Nova: 25%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'CRB',
-      awayTeam: 'Avaí',
-      competition: 'Campeonato Brasileiro Série B',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'CRB' },
+          create: { name: 'CRB' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Avaí' },
+          create: { name: 'Avaí' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série B' },
+          create: { name: 'Campeonato Brasileiro Série B' },
+        },
+      },
       gameDate: new Date('2026-04-02T00:30:00Z'),
       betCloseAt: new Date('2026-04-02T00:20:00Z'),
       moreInfo: `
@@ -300,9 +435,24 @@ Avaí: 30%
 
   await prisma.game.create({
     data: {
-      homeTeam: 'Ponte Preta',
-      awayTeam: 'Ceará',
-      competition: 'Campeonato Brasileiro Série B',
+      homeTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Ponte Preta' },
+          create: { name: 'Ponte Preta' },
+        },
+      },
+      awayTeamRef: {
+        connectOrCreate: {
+          where: { name: 'Ceará' },
+          create: { name: 'Ceará' },
+        },
+      },
+      competitionRef: {
+        connectOrCreate: {
+          where: { name: 'Campeonato Brasileiro Série B' },
+          create: { name: 'Campeonato Brasileiro Série B' },
+        },
+      },
       gameDate: new Date('2026-04-02T00:00:00Z'),
       betCloseAt: new Date('2026-04-01T23:50:00Z'),
       moreInfo: `

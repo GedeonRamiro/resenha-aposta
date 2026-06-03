@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RankingItem } from './interface/ranking-item.interface';
 import { parseDateFilter } from 'src/utils/dataTimeFilter';
+import { GameType } from '@prisma/client';
 
 @Injectable()
 export class UserScoreService {
@@ -13,13 +14,70 @@ export class UserScoreService {
     return 'DRAW';
   }
 
+  private getGameResult(game: {
+    gameType: GameType;
+    homeScore: number | null;
+    awayScore: number | null;
+    secondLegHomeScore: number | null;
+    secondLegAwayScore: number | null;
+    penaltyHomeScore: number | null;
+    penaltyAwayScore: number | null;
+  }) {
+    const hasSecondLegHome = game.secondLegHomeScore !== null;
+    const hasSecondLegAway = game.secondLegAwayScore !== null;
+
+    if (
+      game.gameType === GameType.KNOCKOUT &&
+      hasSecondLegHome !== hasSecondLegAway
+    ) {
+      return null;
+    }
+
+    const homeScore =
+      game.gameType === GameType.KNOCKOUT && hasSecondLegHome
+        ? game.homeScore !== null
+          ? game.homeScore + (game.secondLegHomeScore as number)
+          : null
+        : game.homeScore;
+    const awayScore =
+      game.gameType === GameType.KNOCKOUT && hasSecondLegAway
+        ? game.awayScore !== null
+          ? game.awayScore + (game.secondLegAwayScore as number)
+          : null
+        : game.awayScore;
+
+    if (homeScore === null || awayScore === null) {
+      return null;
+    }
+
+    if (homeScore > awayScore) return 'HOME_WIN';
+    if (homeScore < awayScore) return 'AWAY_WIN';
+
+    if (
+      game.gameType === GameType.KNOCKOUT &&
+      game.penaltyHomeScore !== null &&
+      game.penaltyAwayScore !== null &&
+      game.penaltyHomeScore !== game.penaltyAwayScore
+    ) {
+      return game.penaltyHomeScore > game.penaltyAwayScore
+        ? 'HOME_WIN'
+        : 'AWAY_WIN';
+    }
+
+    return 'DRAW';
+  }
+
   async findAll(startDate?: string, endDate?: string): Promise<RankingItem[]> {
+    const dateFilter = {
+      gte: startDate ? parseDateFilter(startDate, 'start') : undefined,
+      lt: endDate ? parseDateFilter(endDate, 'end') : undefined,
+    };
+
     const games = await this.prisma.game.findMany({
       where: {
         status: 'FINISHED',
         gameDate: {
-          gte: startDate ? parseDateFilter(startDate, 'start') : undefined,
-          lt: endDate ? parseDateFilter(endDate, 'end') : undefined,
+          ...dateFilter,
         },
       },
       include: {
@@ -34,7 +92,11 @@ export class UserScoreService {
     const ranking: Record<string, RankingItem> = {};
 
     for (const game of games) {
-      const result = this.getResult(game.homeScore!, game.awayScore!);
+      const result = this.getGameResult(game);
+
+      if (!result) {
+        continue;
+      }
 
       for (const bet of game.bets) {
         if (!ranking[bet.userId]) {
