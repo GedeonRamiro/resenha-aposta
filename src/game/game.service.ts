@@ -213,9 +213,13 @@ export class GameService {
     const nextStatus = dto.status ?? currentGame.status;
     const resolvedGameType = dto.gameType ?? currentGame.gameType;
     const resolvedSecondLegHomeScore =
-      dto.secondLegHomeScore ?? currentGame.secondLegHomeScore;
+      dto.secondLegHomeScore !== undefined
+        ? (dto.secondLegHomeScore ?? null)
+        : currentGame.secondLegHomeScore;
     const resolvedSecondLegAwayScore =
-      dto.secondLegAwayScore ?? currentGame.secondLegAwayScore;
+      dto.secondLegAwayScore !== undefined
+        ? (dto.secondLegAwayScore ?? null)
+        : currentGame.secondLegAwayScore;
 
     const regularScore = resolveRegularScore({
       gameType: resolvedGameType,
@@ -252,9 +256,13 @@ export class GameService {
     }
 
     const resolvedPenaltyHomeScore =
-      dto.penaltyHomeScore ?? currentGame.penaltyHomeScore;
+      dto.penaltyHomeScore !== undefined
+        ? (dto.penaltyHomeScore ?? null)
+        : currentGame.penaltyHomeScore;
     const resolvedPenaltyAwayScore =
-      dto.penaltyAwayScore ?? currentGame.penaltyAwayScore;
+      dto.penaltyAwayScore !== undefined
+        ? (dto.penaltyAwayScore ?? null)
+        : currentGame.penaltyAwayScore;
 
     if (
       nextStatus === GameStatus.FINISHED &&
@@ -306,9 +314,13 @@ export class GameService {
       gameType: resolvedGameType,
       status: shouldAutoFinish ? GameStatus.FINISHED : dto.status,
       penaltyHomeScore:
-        resolvedGameType === GameType.KNOCKOUT ? dto.penaltyHomeScore : null,
+        resolvedGameType === GameType.KNOCKOUT
+          ? resolvedPenaltyHomeScore
+          : null,
       penaltyAwayScore:
-        resolvedGameType === GameType.KNOCKOUT ? dto.penaltyAwayScore : null,
+        resolvedGameType === GameType.KNOCKOUT
+          ? resolvedPenaltyAwayScore
+          : null,
       homeTeamId: resolvedHomeTeamId,
       awayTeamId: resolvedAwayTeamId,
       competitionId: resolvedCompetitionId,

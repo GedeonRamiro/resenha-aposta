@@ -46,11 +46,11 @@ export class UpdateGameDto extends PartialType(CreateGameDto) {
 
   @IsOptional()
   @IsInt({ message: 'Pênaltis do time da casa deve ser um número inteiro!' })
-  penaltyHomeScore?: number;
+  penaltyHomeScore?: number | null;
 
   @IsOptional()
   @IsInt({ message: 'Pênaltis do time visitante deve ser um número inteiro!' })
-  penaltyAwayScore?: number;
+  penaltyAwayScore?: number | null;
 
   @IsOptional()
   @IsEnum(GameType, {
