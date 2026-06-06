@@ -3,24 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
-function parseAllowedOrigins(value?: string): Set<string> {
-  const origins =
-    value
-      ?.split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean) ?? [];
-
-  return new Set(origins);
-}
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const allowedOrigins = new Set([
     'http://localhost:3000',
     'https://resenha-aposta-front-chi.vercel.app',
-    ...parseAllowedOrigins(process.env.FRONTEND_URL),
-    ...parseAllowedOrigins(process.env.CORS_ORIGINS),
   ]);
 
   app.useGlobalPipes(
