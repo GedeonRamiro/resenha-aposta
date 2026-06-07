@@ -4,7 +4,7 @@ import { SyncUserDto } from './dto/sync-user.dto';
 import * as jwt from 'jsonwebtoken';
 
 function getJwtSecret(): string {
-  return process.env.JWT_SECRET ?? process.env.BETTER_AUTH_SECRET ?? '';
+  return process.env.JWT_SECRET ?? '';
 }
 
 @Injectable()
@@ -14,7 +14,7 @@ export class AuthService {
   async syncUser(data: SyncUserDto) {
     const secret = getJwtSecret();
     if (!secret) {
-      throw new Error('JWT_SECRET ou BETTER_AUTH_SECRET não está definido');
+      throw new Error('JWT_SECRET não está definido');
     }
 
     const user = await this.prisma.user.upsert({

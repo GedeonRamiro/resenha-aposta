@@ -4,7 +4,7 @@ import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service';
 
 function getJwtSecret(): string {
-  return process.env.JWT_SECRET ?? process.env.BETTER_AUTH_SECRET ?? '';
+  return process.env.JWT_SECRET ?? '';
 }
 
 @Injectable()
@@ -23,7 +23,7 @@ export class AuthMiddleware implements NestMiddleware {
     try {
       const secret = getJwtSecret();
       if (!secret) {
-        throw new Error('JWT_SECRET ou BETTER_AUTH_SECRET não está definido');
+        throw new Error('JWT_SECRET não está definido');
       }
 
       const payload = jwt.verify(token, secret) as { userId: string };
