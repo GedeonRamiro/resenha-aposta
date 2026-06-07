@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotAcceptableException,
   NotFoundException,
@@ -13,6 +14,16 @@ import { createPagination } from 'src/utils/pagination';
 @Injectable()
 export class TeamService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async assertNameIsAvailable(name: string, excludeId?: string) {
+    const team = await this.prisma.team.findUnique({
+      where: { name },
+    });
+
+    if (team && team.id !== excludeId) {
+      throw new ConflictException('Já existe um time com esse nome.');
+    }
+  }
 
   async getAll(limit: number, page: number): Promise<ReturnTeamPagination> {
     if (isNaN(Number(page)) || isNaN(Number(limit))) {
@@ -48,6 +59,8 @@ export class TeamService {
   async create(dto: CreateTeamDto) {
     const name = dto.name.trim();
 
+    await this.assertNameIsAvailable(name);
+
     return this.prisma.team.create({
       data: {
         name,
@@ -60,6 +73,10 @@ export class TeamService {
     await this.findOne(id);
 
     const nextName = dto.name?.trim();
+
+    if (nextName) {
+      await this.assertNameIsAvailable(nextName, id);
+    }
 
     return this.prisma.team.update({
       where: { id },

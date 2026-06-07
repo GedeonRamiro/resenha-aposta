@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotAcceptableException,
   NotFoundException,
@@ -13,6 +14,16 @@ import { createPagination } from 'src/utils/pagination';
 @Injectable()
 export class CompetitionService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async assertNameIsAvailable(name: string, excludeId?: string) {
+    const competition = await this.prisma.competition.findUnique({
+      where: { name },
+    });
+
+    if (competition && competition.id !== excludeId) {
+      throw new ConflictException('Já existe uma competição com esse nome.');
+    }
+  }
 
   async getAll(
     limit: number,
@@ -51,6 +62,8 @@ export class CompetitionService {
   async create(dto: CreateCompetitionDto) {
     const name = dto.name.trim();
 
+    await this.assertNameIsAvailable(name);
+
     return this.prisma.competition.create({
       data: {
         name,
@@ -63,6 +76,10 @@ export class CompetitionService {
     await this.findOne(id);
 
     const nextName = dto.name?.trim();
+
+    if (nextName) {
+      await this.assertNameIsAvailable(nextName, id);
+    }
 
     return this.prisma.competition.update({
       where: { id },

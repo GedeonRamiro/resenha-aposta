@@ -171,7 +171,7 @@ export class GameService {
       where,
       take: limit,
       skip,
-      orderBy: [{ createdAt: 'desc' }, { gameDate: 'desc' }],
+      orderBy: [{ gameDate: 'desc' }, { createdAt: 'desc' }],
       include: {
         homeTeamRef: true,
         awayTeamRef: true,
