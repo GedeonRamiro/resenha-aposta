@@ -17,6 +17,9 @@ export class PrismaService
 
     const pool = new Pool({
       connectionString,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
 
     const adapter = new PrismaPg(pool);
